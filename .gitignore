@@ -1,0 +1,5 @@
+.idea/
+out/production/
+db/WorktimeDB.db
+JAR/META-INF/MANIFEST.MF
+WorktimeTracker.iml
