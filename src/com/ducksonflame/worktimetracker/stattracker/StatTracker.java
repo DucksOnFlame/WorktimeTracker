@@ -167,23 +167,37 @@ public class StatTracker {
     private long getQuarterlyBalance() {
 
         Date date = new Date();
-        String today = new SimpleDateFormat("yyyy-MM-dd").format(date);
-        String year = new SimpleDateFormat("yyyy").format(date);
+        String year = Integer.toString(getCurrentYear());
+
+//        List<String> months = new ArrayList<>();
+//
+//        int currentMonth = Integer.parseInt(new SimpleDateFormat("MM").format(date));
+//
+//        for (int i = 0; i < 3; i++) {
+//            int monthNumber = 3 * (quarter - 1) + i + 1;
+//
+//            if (monthNumber > currentMonth)
+//                break;
+//
+//            months.add(String.format("%02d", monthNumber));
+//        }
 
         String[] months = new String[3];
-        int quarter = Integer.parseInt(new SimpleDateFormat("MM").format(date)) / 3;
+        int quarter = getCurrentQuarter();
 
         for (int i = 0; i < 3; i++) {
-            months[i] = String.format("%02d", 3 * quarter + i + 1);
+            months[i] = String.format("%02d", 3 * (quarter - 1) + i + 1);
         }
 
-        String sql = "SELECT IFNULL((SUM((IFNULL(TimeOut, 0) - TimeIn))) - (COUNT(TimeIn)*28800), 0)\n" +
-                " + (SELECT (" + getSecondsToday() + " - TimeIn) - 28800 FROM WorktimeIn WHERE DayIn LIKE '" + today + "')\n" +
+        String today = new SimpleDateFormat("yyyy-MM-dd").format(date);
+
+        String sql = "SELECT IFNULL((SUM((IFNULL(WorktimeOut.TimeOut, 0) - WorktimeIn.TimeIn))) - (COUNT(WorktimeIn.TimeIn)*28800), 0)\n" +
+                " + (SELECT (" + getSecondsToday() + " - WorktimeIn.TimeIn) - 28800 FROM WorktimeIn WHERE WorktimeIn.DayIn LIKE '" + today + "')\n" +
                 " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.DayIn WHERE BreakDay LIKE '" + year + "-" + months[0] + "-__' OR '" + year + "-" + months[1] + "-__' OR '" + year + "-" + months[2] + "-__')\n" +
                 "FROM WorktimeIn\n" +
                 "INNER JOIN WorktimeOut\n" +
-                "ON DayIn = WorktimeOut.DayOut\n" +
-                "WHERE DayIn LIKE '" + year + "-" + months[0] + "-__' OR DayIn LIKE '" + year + "-" + months[1] + "-__' OR DayIn LIKE '" + year + "-" + months[2] + "-__';";
+                "ON WorktimeIn.DayIn = WorktimeOut.DayOut\n" +
+                "WHERE WorktimeIn.DayIn LIKE '" + year + "-" + months[0] + "-__' OR WorktimeIn.DayIn LIKE '" + year + "-" + months[1] + "-__' OR WorktimeIn.DayIn LIKE '" + year + "-" + months[2] + "-__';";
 
         try (Connection conn = dbConnectionManager.getDbConnection();
              Statement stmt = conn.createStatement();
@@ -253,16 +267,10 @@ public class StatTracker {
         }
 
         executePrintQuarterLogs(year, quarter);
-
     }
 
     public void executePrintQuarterLogs() {
-
-        Date date = new Date();
-        int year = Integer.parseInt(new SimpleDateFormat("yyyy").format(date));
-        int quarter = (Integer.parseInt(new SimpleDateFormat("MM").format(date)) / 3) + 1;
-
-        executePrintQuarterLogs(year, quarter);
+        executePrintQuarterLogs(getCurrentYear(), getCurrentQuarter());
     }
 
 
@@ -303,6 +311,13 @@ public class StatTracker {
         long totalBalance = 0;
 
         System.out.println("|----------------------------- LOGS FOR QUARTER " + quarter + " ----------------------------|\n");
+        if (months.isEmpty()) {
+            System.out.println("|-----------------------------------------------------------------------------|");
+            System.out.println("|                                 NO LOGS YET                                 |");
+            System.out.println("|-----------------------------------------------------------------------------|");
+            return;
+        }
+
 
         for (String month : months) {
             monthlyBalance = 0;
@@ -366,5 +381,24 @@ public class StatTracker {
         System.out.println("                                            |---------------------------------|");
         System.out.println("                                            | QUARTERLY BALANCE: " + totalBalanceString + " |");
         System.out.println("                                            |---------------------------------|");
+    }
+
+    private int getCurrentYear() {
+        return Integer.parseInt(new SimpleDateFormat("yyyy").format(new Date()));
+    }
+
+    private int getCurrentQuarter() {
+        Date date = new Date();
+        int quarter = (Integer.parseInt(new SimpleDateFormat("MM").format(date)) / 3);
+
+        if (Integer.parseInt(new SimpleDateFormat("MM").format(date)) % 3 != 0) {
+            quarter++;
+        }
+
+        return quarter;
+    }
+
+    private int getCurrentMonth() {
+        return Integer.parseInt(new SimpleDateFormat("MM").format(new Date()));
     }
 }
