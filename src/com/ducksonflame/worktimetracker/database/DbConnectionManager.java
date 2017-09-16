@@ -12,7 +12,6 @@ public class DbConnectionManager {
     public DbConnectionManager() {
 
         if (!checkIfDbExists()) {
-            System.out.println("Creating a new database file...");
             createNewDatabase();
         }
 
@@ -60,6 +59,8 @@ public class DbConnectionManager {
     }
 
     private void createNewDatabase() {
+
+        System.out.println("Creating a new database file...");
 
         try {
             new File("db").mkdirs();
