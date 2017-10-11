@@ -193,7 +193,7 @@ public class StatTracker {
 
         String sql = "SELECT IFNULL((SUM((IFNULL(WorktimeOut.TimeOut, 0) - WorktimeIn.TimeIn))) - (COUNT(WorktimeIn.TimeIn)*28800), 0)\n" +
                 " + (SELECT (" + getSecondsToday() + " - WorktimeIn.TimeIn) - 28800 FROM WorktimeIn WHERE WorktimeIn.DayIn LIKE '" + today + "')\n" +
-                " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.DayIn WHERE BreakDay LIKE '" + year + "-" + months[0] + "-__' OR '" + year + "-" + months[1] + "-__' OR '" + year + "-" + months[2] + "-__')\n" +
+                " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.DayIn WHERE BreakDay IN ('" + year + "-" + months[0] + "-__', '" + year + "-" + months[1] + "-__', '" + year + "-" + months[2] + "-__'))\n" +
                 "FROM WorktimeIn\n" +
                 "INNER JOIN WorktimeOut\n" +
                 "ON WorktimeIn.DayIn = WorktimeOut.DayOut\n" +
