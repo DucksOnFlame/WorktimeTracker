@@ -65,17 +65,10 @@ public class StatTracker {
         System.out.println("\n---------------------------------MONTH----------------------------------");
         System.out.print("Here is your balance for " + month + ": \n" + Utils.getHHMMSSFormattedString(Math.abs(balance)));
 
-        if (balance > 0) {
-            System.out.println(" OVER the expected worktime.");
-        } else if (balance == 0) {
-            System.out.println("\nYou brought balance to the Force!");
-        } else {
-            System.out.println(" BELOW the expected worktime.");
-        }
+        printBalanceComment(balance);
 
         System.out.println("\n(This includes today's worktime.)");
         System.out.println("------------------------------------------------------------------------\n");
-
 
     }
 
@@ -86,6 +79,14 @@ public class StatTracker {
         System.out.println("\n--------------------------------QUARTER---------------------------------");
         System.out.print("Here is your balance for this quarter: \n" + Utils.getHHMMSSFormattedString(Math.abs(balance)));
 
+        printBalanceComment(balance);
+
+        System.out.println("\n(This includes today's worktime.)");
+        System.out.println("------------------------------------------------------------------------\n");
+
+    }
+
+    private void printBalanceComment(long balance) {
         if (balance > 0) {
             System.out.println(" OVER the expected worktime.");
         } else if (balance == 0) {
@@ -93,9 +94,6 @@ public class StatTracker {
         } else {
             System.out.println(" BELOW the expected worktime.");
         }
-        System.out.println("\n(This includes today's worktime.)");
-        System.out.println("------------------------------------------------------------------------\n");
-
     }
 
     private long getWorktimeToday() {
@@ -151,36 +149,13 @@ public class StatTracker {
                 "ON DayIn = WorktimeOut.DayOut\n" +
                 "WHERE DayIn LIKE '" + year + "-" + month + "-__';";
 
-        try (Connection conn = dbConnectionManager.getDbConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            rs.next();
-            return rs.getLong(1);
-
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return -1;
-        }
+        return getWorktimeFromDatabase(sql);
     }
 
     private long getQuarterlyBalance() {
 
         Date date = new Date();
         String year = Integer.toString(getCurrentYear());
-
-//        List<String> months = new ArrayList<>();
-//
-//        int currentMonth = Integer.parseInt(new SimpleDateFormat("MM").format(date));
-//
-//        for (int i = 0; i < 3; i++) {
-//            int monthNumber = 3 * (quarter - 1) + i + 1;
-//
-//            if (monthNumber > currentMonth)
-//                break;
-//
-//            months.add(String.format("%02d", monthNumber));
-//        }
 
         String[] months = new String[3];
         int quarter = getCurrentQuarter();
@@ -193,12 +168,16 @@ public class StatTracker {
 
         String sql = "SELECT IFNULL((SUM((IFNULL(WorktimeOut.TimeOut, 0) - WorktimeIn.TimeIn))) - (COUNT(WorktimeIn.TimeIn)*28800), 0)\n" +
                 " + (SELECT (" + getSecondsToday() + " - WorktimeIn.TimeIn) - 28800 FROM WorktimeIn WHERE WorktimeIn.DayIn LIKE '" + today + "')\n" +
-                " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.DayIn WHERE BreakDay IN ('" + year + "-" + months[0] + "-__', '" + year + "-" + months[1] + "-__', '" + year + "-" + months[2] + "-__'))\n" +
+                " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.DayIn WHERE BreakDay LIKE '" + year + "-" + months[0] + "-__' OR BreakDay LIKE '" + year + "-" + months[1] + "-__' OR BreakDay LIKE '" + year + "-" + months[2] + "-__')\n" +
                 "FROM WorktimeIn\n" +
                 "INNER JOIN WorktimeOut\n" +
                 "ON WorktimeIn.DayIn = WorktimeOut.DayOut\n" +
                 "WHERE WorktimeIn.DayIn LIKE '" + year + "-" + months[0] + "-__' OR WorktimeIn.DayIn LIKE '" + year + "-" + months[1] + "-__' OR WorktimeIn.DayIn LIKE '" + year + "-" + months[2] + "-__';";
 
+        return getWorktimeFromDatabase(sql);
+    }
+
+    private long getWorktimeFromDatabase(String sql) {
         try (Connection conn = dbConnectionManager.getDbConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -269,7 +248,7 @@ public class StatTracker {
         executePrintQuarterLogs(year, quarter);
     }
 
-    public void executePrintQuarterLogs() {
+    private void executePrintQuarterLogs() {
         executePrintQuarterLogs(getCurrentYear(), getCurrentQuarter());
     }
 
