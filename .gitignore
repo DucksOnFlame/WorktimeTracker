@@ -1,5 +1,7 @@
 .idea/
-out/production/
-
 db/
 WorktimeTracker.iml
+/target/maven-status/
+/target/generated-sources/
+/target/maven-archiver/
+/target/classes/

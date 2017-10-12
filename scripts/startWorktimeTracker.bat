@@ -1,1 +1,1 @@
-java -jar WorktimeTracker.jar
+java -jar WorktimeTracker-1.0.jar
