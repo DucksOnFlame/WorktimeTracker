@@ -1,10 +1,10 @@
 package com.ducksonflame.worktimetracker;
 
-import com.ducksonflame.worktimetracker.database.DbConnectionManager;
 import com.ducksonflame.worktimetracker.loggers.BreakLogger;
 import com.ducksonflame.worktimetracker.loggers.InLogger;
 import com.ducksonflame.worktimetracker.loggers.OutLogger;
 import com.ducksonflame.worktimetracker.stattracker.StatTracker;
+import com.ducksonflame.worktimetracker.utils.Utils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -12,7 +12,6 @@ import java.io.InputStreamReader;
 
 public class WorktimeTracker {
 
-    private DbConnectionManager dbConnManager;
     private BufferedReader bufferedReader;
     private StatTracker statTracker;
     private InLogger inLogger;
@@ -20,7 +19,6 @@ public class WorktimeTracker {
     private BreakLogger breakLogger;
 
     public static void main(String[] args) {
-
         WorktimeTracker worktimeTracker = new WorktimeTracker();
 
         if (args != null && args.length > 0 && args[0].equals("shutdown")) {
@@ -31,14 +29,11 @@ public class WorktimeTracker {
     }
 
     private WorktimeTracker() {
-
-        dbConnManager = new DbConnectionManager();
         bufferedReader = new BufferedReader(new InputStreamReader(System.in));
-        statTracker = new StatTracker(dbConnManager, bufferedReader);
-        inLogger = new InLogger(dbConnManager, statTracker, bufferedReader);
-        outLogger = new OutLogger(dbConnManager, statTracker, bufferedReader);
-        breakLogger = new BreakLogger(dbConnManager, bufferedReader);
-
+        statTracker = new StatTracker(bufferedReader);
+        inLogger = new InLogger(statTracker, bufferedReader);
+        outLogger = new OutLogger(bufferedReader);
+        breakLogger = new BreakLogger(bufferedReader);
     }
 
     private void initConsoleUi() {
@@ -54,8 +49,6 @@ public class WorktimeTracker {
 
     private void askForAction() throws IOException {
 
-        System.out.println("\n\n------------------------------------------------------------------------");
-        System.out.println("What would you like to do?");
         printAvailableCommands();
 
         while (true) {
@@ -99,7 +92,7 @@ public class WorktimeTracker {
                     return;
 
                 default:
-                    System.out.println("Please enter a valid command");
+                    System.out.println("\nPlease enter a valid command");
                     printAvailableCommands();
                     continue;
             }
@@ -109,6 +102,8 @@ public class WorktimeTracker {
     }
 
     private void printAvailableCommands() {
+        System.out.println("\n------------------------------------------------------------------------");
+        System.out.println("What would you like to do?");
         System.out.println("------------------------------------------------------------------------");
         System.out.println("cin       - Update/create a clock in log");
         System.out.println("cout      - Update/create a clock out log");

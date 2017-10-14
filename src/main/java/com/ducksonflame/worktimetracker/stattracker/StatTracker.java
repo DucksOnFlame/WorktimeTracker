@@ -1,18 +1,13 @@
 package com.ducksonflame.worktimetracker.stattracker;
 
-import com.ducksonflame.worktimetracker.database.DbConnectionManager;
+import com.ducksonflame.worktimetracker.data.DatabaseCommandInvoker;
+import com.ducksonflame.worktimetracker.data.LogDTO;
+import com.ducksonflame.worktimetracker.data.QueryForLogCommand;
+import com.ducksonflame.worktimetracker.data.QueryForLongCommand;
 import com.ducksonflame.worktimetracker.utils.Utils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,73 +15,61 @@ import java.util.regex.Pattern;
 
 public class StatTracker {
 
-    private DbConnectionManager dbConnectionManager;
     private BufferedReader bufferedReader;
 
-    public StatTracker(DbConnectionManager dbConnectionManager, BufferedReader br) {
-
-        this.dbConnectionManager = dbConnectionManager;
+    public StatTracker(BufferedReader br) {
         this.bufferedReader = br;
-
     }
 
     public void printFullStatistics() {
-
-        System.out.println("Here are your statistics:");
-        printTodaysStatistics();
+        System.out.println("\nHere are your statistics:");
+        printDailyStatistics(false);
         printMonthlyStatistics();
         printQuarterlyStatistics();
-
     }
 
     // Model frame with middle indicated
     // ---------------------------------------|---------------------------------------
 
-    public void printTodaysStatistics() {
-        System.out.println("\n---------------------------------TODAY----------------------------------");
+    public void printDailyStatistics(boolean isClockIn) {
+        System.out.println("\n------------------------------  CLOCK IN  ------------------------------");
         System.out.println("You have arrived at " + getTimeArrivedString() + " today.");
-        System.out.println("\nYou have been working for " + getTimeWorkingString() + " today.");
-        System.out.println("------------------------------------------------------------------------\n");
-    }
-
-    public void printClockInStatistics() {
-        System.out.println("\n--------------------------------CLOCK IN--------------------------------");
-        System.out.println("You have arrived at " + getTimeArrivedString() + " today.");
+        if (isClockIn) {
+            System.out.println("\nYou have been working for " + getTimeWorkingString() + " today.");
+        }
         System.out.println("------------------------------------------------------------------------");
     }
 
     private void printMonthlyStatistics() {
-
-        Calendar mCalendar = Calendar.getInstance();
-        String month = mCalendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault());
-
         long balance = getMonthlyBalance();
-
-        System.out.println("\n---------------------------------MONTH----------------------------------");
-        System.out.print("Here is your balance for " + month + ": \n" + Utils.getHHMMSSFormattedString(Math.abs(balance)));
-
-        printBalanceComment(balance);
-
-        System.out.println("\n(This includes today's worktime.)");
-        System.out.println("------------------------------------------------------------------------\n");
-
+        printBalanceStatistics(Utils.getTitleMonthString(String.valueOf(Utils.getCurrentMonth())), balance);
     }
 
     private void printQuarterlyStatistics() {
-
         long balance = getQuarterlyBalance();
-
-        System.out.println("\n--------------------------------QUARTER---------------------------------");
-        System.out.print("Here is your balance for this quarter: \n" + Utils.getHHMMSSFormattedString(Math.abs(balance)));
-
-        printBalanceComment(balance);
-
-        System.out.println("\n(This includes today's worktime.)");
-        System.out.println("------------------------------------------------------------------------\n");
-
+        printBalanceStatistics("QUARTER", balance);
     }
 
-    private void printBalanceComment(long balance) {
+    private void printBalanceStatistics(String title, long balance) {
+
+        title = "  " + title.trim() + "  ";
+        String titleDecorationHalf = "-----------------------------";
+        String endDecoration = "------------------------------------------------------------------------\n";
+
+        int missingChars = 14 - title.length();
+        StringBuilder builder = new StringBuilder(titleDecorationHalf);
+        for (int i = 0; i < missingChars / 2; i++) {
+            builder.append("-");
+        }
+        String firstHalf = builder.toString();
+        if (missingChars % 2 == 1) {
+            builder.append("-");
+        }
+        String secondHalf = builder.toString();
+
+        System.out.println("\n" + firstHalf + title + secondHalf);
+        System.out.print("Balance: " + Utils.getHHMMSSFormattedString(Math.abs(balance)));
+
         if (balance > 0) {
             System.out.println(" OVER the expected worktime.");
         } else if (balance == 0) {
@@ -94,55 +77,18 @@ public class StatTracker {
         } else {
             System.out.println(" BELOW the expected worktime.");
         }
-    }
 
-    private long getWorktimeToday() {
-
-        String sql = "SELECT TimeIn FROM WorktimeIn WHERE DayIn = date('now', 'localtime');";
-
-        try (Connection conn = dbConnectionManager.getDbConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            rs.next();
-            return rs.getInt("TimeIn");
-
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return -1;
-        }
-
-    }
-
-    private String getTimeArrivedString() {
-        long timeArrived = getWorktimeToday();
-        return String.format("%02d:%02d:%02d", timeArrived / 3600, timeArrived / 60 % 60, timeArrived % 60);
-    }
-
-    private String getTimeWorkingString() {
-
-        long timeArrived = getWorktimeToday();
-        long secondsPassed = getSecondsToday() - timeArrived;
-
-        return Utils.getHHMMSSFormattedString(secondsPassed);
-    }
-
-    public long getSecondsToday() {
-        ZonedDateTime now = ZonedDateTime.now();
-        ZonedDateTime midnight = now.truncatedTo(ChronoUnit.DAYS);
-        Duration duration = Duration.between(midnight, now);
-        return duration.getSeconds();
+        System.out.println("\n(This includes today's worktime.)");
+        System.out.println(endDecoration);
     }
 
     private long getMonthlyBalance() {
-
-        Date date = new Date();
-        String today = new SimpleDateFormat("yyyy-MM-dd").format(date);
-        String year = new SimpleDateFormat("yyyy").format(date);
-        String month = new SimpleDateFormat("MM").format(date);
+        String today = Utils.getTodayString();
+        String month = Utils.getCurrentMonthString();
+        String year = Utils.getCurrentYearString();
 
         String sql = "SELECT IFNULL((SUM((IFNULL(TimeOut, 0) - TimeIn))) - (COUNT(TimeIn)*28800), 0)\n" +
-                " + (SELECT (" + getSecondsToday() + " - TimeIn) - 28800 FROM WorktimeIn WHERE DayIn LIKE '" + today + "')\n" +
+                " + (SELECT (" + Utils.getSecondsToday() + " - TimeIn) - 28800 FROM WorktimeIn WHERE DayIn LIKE '" + today + "')\n" +
                 " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.DayIn WHERE BreakDay LIKE '" + year + "-" + month + "-__')\n" +
                 "FROM WorktimeIn\n" +
                 "INNER JOIN WorktimeOut\n" +
@@ -154,20 +100,19 @@ public class StatTracker {
 
     private long getQuarterlyBalance() {
 
-        Date date = new Date();
-        String year = Integer.toString(getCurrentYear());
+        String year = Utils.getCurrentYearString();
 
         String[] months = new String[3];
-        int quarter = getCurrentQuarter();
+        int quarter = Utils.getCurrentQuarter();
 
         for (int i = 0; i < 3; i++) {
             months[i] = String.format("%02d", 3 * (quarter - 1) + i + 1);
         }
 
-        String today = new SimpleDateFormat("yyyy-MM-dd").format(date);
+        String today = Utils.getTodayString();
 
         String sql = "SELECT IFNULL((SUM((IFNULL(WorktimeOut.TimeOut, 0) - WorktimeIn.TimeIn))) - (COUNT(WorktimeIn.TimeIn)*28800), 0)\n" +
-                " + (SELECT (" + getSecondsToday() + " - WorktimeIn.TimeIn) - 28800 FROM WorktimeIn WHERE WorktimeIn.DayIn LIKE '" + today + "')\n" +
+                " + (SELECT (" + Utils.getSecondsToday() + " - WorktimeIn.TimeIn) - 28800 FROM WorktimeIn WHERE WorktimeIn.DayIn LIKE '" + today + "')\n" +
                 " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.DayIn WHERE BreakDay LIKE '" + year + "-" + months[0] + "-__' OR BreakDay LIKE '" + year + "-" + months[1] + "-__' OR BreakDay LIKE '" + year + "-" + months[2] + "-__')\n" +
                 "FROM WorktimeIn\n" +
                 "INNER JOIN WorktimeOut\n" +
@@ -177,20 +122,6 @@ public class StatTracker {
         return getWorktimeFromDatabase(sql);
     }
 
-    private long getWorktimeFromDatabase(String sql) {
-        try (Connection conn = dbConnectionManager.getDbConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            rs.next();
-            return rs.getLong(1);
-
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return -1;
-        }
-    }
-
     public void printQuarterLogs(boolean specificQuarter) {
 
         if (!specificQuarter) {
@@ -198,7 +129,7 @@ public class StatTracker {
             return;
         }
 
-        Pattern pattern = Utils.getQuarterPatern();
+        Pattern pattern = Utils.getQuarterPattern();
 
         System.out.println("Please specify the quarter and year in which you are interested.");
         System.out.println("Please use the following format: Q-yyyy\n");
@@ -207,9 +138,8 @@ public class StatTracker {
         int quarter = 0;
         int year = 0;
 
-        Date date = new Date();
-        int minYear = Integer.parseInt(new SimpleDateFormat("yyyy").format(date));
-        int minQuarter = (Integer.parseInt(new SimpleDateFormat("MM").format(date)) / 3) + 1;
+        int maxYear = Utils.getCurrentYear();
+        int maxQuarter = Utils.getCurrentQuarter();
 
         try {
 
@@ -226,7 +156,7 @@ public class StatTracker {
                     quarter = Integer.parseInt(userInput.substring(0, 1));
                     year = Integer.parseInt(userInput.substring(2, 6));
 
-                    if (year < minYear || (year == minYear && quarter <= minQuarter)) {
+                    if (year < maxYear || (year == maxYear && quarter <= maxQuarter)) {
                         isInputCorrect = true;
                     } else {
                         System.out.println("I am not a fortune teller!\n");
@@ -249,18 +179,15 @@ public class StatTracker {
     }
 
     private void executePrintQuarterLogs() {
-        executePrintQuarterLogs(getCurrentYear(), getCurrentQuarter());
+        executePrintQuarterLogs(Utils.getCurrentYear(), Utils.getCurrentQuarter());
     }
 
 
     private void executePrintQuarterLogs(int year, int quarter) {
 
-        System.out.println();
-
         List<String> months = new ArrayList<>();
 
-        Date date = new Date();
-        int currentMonth = Integer.parseInt(new SimpleDateFormat("MM").format(date));
+        int currentMonth = Utils.getCurrentMonth();
 
         for (int i = 0; i < 3; i++) {
             int monthNumber = 3 * (quarter - 1) + i + 1;
@@ -289,14 +216,13 @@ public class StatTracker {
         long monthlyBalance;
         long totalBalance = 0;
 
-        System.out.println("|----------------------------- LOGS FOR QUARTER " + quarter + " ----------------------------|\n");
+        System.out.println("\n|----------------------------- LOGS FOR QUARTER " + quarter + " ----------------------------|\n");
         if (months.isEmpty()) {
             System.out.println("|-----------------------------------------------------------------------------|");
             System.out.println("|                                 NO LOGS YET                                 |");
             System.out.println("|-----------------------------------------------------------------------------|");
             return;
         }
-
 
         for (String month : months) {
             monthlyBalance = 0;
@@ -307,6 +233,7 @@ public class StatTracker {
             System.out.println("|-----------------------------------------------------------------------------|");
 
             boolean logsExist = false;
+            DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
 
             for (int j = 1; j < 32; j++) {
 
@@ -315,32 +242,26 @@ public class StatTracker {
                         "INNER JOIN WorktimeOut ON win.DayIn = WorktimeOut.DayOut\n" +
                         "WHERE DayIn = \"" + year + "-" + month + "-" + String.format("%02d", j) + "\"";
 
-                try (Connection conn = dbConnectionManager.getDbConnection();
-                     Statement stmt = conn.createStatement();
-                     ResultSet rs = stmt.executeQuery(sql)) {
+                LogDTO log = invoker.executeQueryForLogCommand(new QueryForLogCommand(sql));
 
-                    if (rs.next()) {
-                        logsExist = true;
-                        day = rs.getString(1);
-                        timeIn = rs.getLong(2);
-                        timeOut = rs.getLong(3);
-                        breakTime = rs.getLong(4);
+                if (log != null) {
+                    logsExist = true;
+                    day = log.getDay();
+                    timeIn = log.getTimeIn();
+                    timeOut = log.getTimeOut();
+                    breakTime = log.getBreakTime();
 
-                        workTime = timeOut - timeIn - breakTime;
-                        balance = workTime - 28800;
-                        monthlyBalance += balance;
+                    workTime = timeOut - timeIn - breakTime;
+                    balance = workTime - 28800;
+                    monthlyBalance += balance;
 
-                        timeInString = Utils.getTimeFormattedString(timeIn);
-                        timeOutString = Utils.getTimeFormattedString(timeOut);
-                        breakTimeString = Utils.getHHMMSSFormattedStringFixedSpace(breakTime);
-                        workTimeString = Utils.getHHMMSSFormattedStringFixedSpace(workTime);
-                        balanceString = Utils.getHHMMSSFormattedStringFixedSpaceSignSafe(balance);
+                    timeInString = Utils.getTimeFormattedString(timeIn);
+                    timeOutString = Utils.getTimeFormattedString(timeOut);
+                    breakTimeString = Utils.getHHMMSSFormattedStringFixedSpace(breakTime);
+                    workTimeString = Utils.getHHMMSSFormattedStringFixedSpace(workTime);
+                    balanceString = Utils.getHHMMSSFormattedStringFixedSpaceSignSafe(balance);
 
-                        System.out.println("| " + day + " | " + timeInString + " | " + timeOutString + " | " + breakTimeString + " | " + workTimeString + " | " + balanceString + " |");
-                    }
-
-                } catch (SQLException e) {
-                    System.out.println(e.getMessage());
+                    System.out.println("| " + day + " | " + timeInString + " | " + timeOutString + " | " + breakTimeString + " | " + workTimeString + " | " + balanceString + " |");
                 }
             }
 
@@ -362,22 +283,23 @@ public class StatTracker {
         System.out.println("                                            |---------------------------------|");
     }
 
-    private int getCurrentYear() {
-        return Integer.parseInt(new SimpleDateFormat("yyyy").format(new Date()));
+    private String getTimeArrivedString() {
+        return Utils.getTimeFormattedString(getTimeInToday());
     }
 
-    private int getCurrentQuarter() {
-        Date date = new Date();
-        int quarter = (Integer.parseInt(new SimpleDateFormat("MM").format(date)) / 3);
+    private String getTimeWorkingString() {
+        long timeIn = getTimeInToday();
+        long secondsPassed = Utils.getSecondsToday() - timeIn;
 
-        if (Integer.parseInt(new SimpleDateFormat("MM").format(date)) % 3 != 0) {
-            quarter++;
-        }
-
-        return quarter;
+        return Utils.getHHMMSSFormattedString(secondsPassed);
     }
 
-    private int getCurrentMonth() {
-        return Integer.parseInt(new SimpleDateFormat("MM").format(new Date()));
+    private long getTimeInToday() {
+        String sql = "SELECT TimeIn FROM WorktimeIn WHERE DayIn = date('now', 'localtime');";
+        return new DatabaseCommandInvoker().executeQueryForLongCommand(new QueryForLongCommand(sql));
+    }
+
+    private long getWorktimeFromDatabase(String sql) {
+        return new DatabaseCommandInvoker().executeQueryForLongCommand(new QueryForLongCommand(sql));
     }
 }

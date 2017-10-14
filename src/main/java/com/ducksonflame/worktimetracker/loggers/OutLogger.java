@@ -1,45 +1,23 @@
 package com.ducksonflame.worktimetracker.loggers;
 
 
-import com.ducksonflame.worktimetracker.database.DbConnectionManager;
-import com.ducksonflame.worktimetracker.stattracker.StatTracker;
+import com.ducksonflame.worktimetracker.data.DatabaseCommandInvoker;
+import com.ducksonflame.worktimetracker.data.UpdateDatabaseCommand;
+import com.ducksonflame.worktimetracker.data.QueryForExistenceCommand;
 import com.ducksonflame.worktimetracker.utils.Utils;
 
 import java.io.BufferedReader;
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class OutLogger {
 
-    private DbConnectionManager dbConnectionManager;
-    private StatTracker statTracker;
-    private BufferedReader br;
+    private BufferedReader bufferedReader;
 
-
-    public OutLogger(DbConnectionManager dbConnectionManager, StatTracker statTracker, BufferedReader br) {
-
-        this.dbConnectionManager = dbConnectionManager;
-        this.statTracker = statTracker;
-        this.br = br;
+    public OutLogger(BufferedReader bufferedReader) {
+        this.bufferedReader = bufferedReader;
     }
 
     public void clockOut() {
-
         askForClockOut();
-
-    }
-
-    public void shutdownClockOut() {
-        if (doesLogExist(null)) {
-            handleSameDayClockOut(null, null);
-        } else {
-            executeClockOut(null, null);
-        }
     }
 
 
@@ -49,85 +27,32 @@ public class OutLogger {
         System.out.println("Please specify the clock out day and time. Type \"b\" to return to main menu.");
         System.out.println("Please use the following format: yyyy-MM-dd hh:mm:ss\n");
 
-        try {
+        ConsoleCommandInvoker invoker = new ConsoleCommandInvoker();
+        String[] input = (String[]) invoker.execute(new GetTimeAndDayConsoleCommand(bufferedReader));
+        if (input == null || input.length < 2) {
+            return;
+        }
+        String day = input[0];
+        String time = input[1];
 
-            Pattern dayPattern = Utils.getDayPattern();
-            Pattern timePattern = Utils.getTimePattern();
-            boolean isInputCorrect = false;
-            String day = "";
-            String time = "";
-
-            while (!isInputCorrect) {
-
-                String userInput = br.readLine();
-
-                if (userInput.toLowerCase().equals("b")) {
-                    System.out.println("Clock out log NOT created/updated.");
-                    return;
-                }
-
-                Matcher matcher = dayPattern.matcher(userInput);
-
-                if (matcher.find()) {
-                    day = matcher.group();
-                    isInputCorrect = true;
-                }
-
-                if (isInputCorrect) {
-                    matcher = timePattern.matcher(userInput);
-
-                    if (matcher.find()) {
-                        time = matcher.group();
-                    } else {
-                        isInputCorrect = false;
-                    }
-                }
-
-                if (!isInputCorrect) {
-                    System.out.println("Please provide correct input! (yyyy-MM-dd hh:mm:ss or \"b\" to go back to main menu)\n");
-                }
-            }
-
-            if (doesLogExist(day)) {
-                handleSameDayClockOut(day, time);
-            } else {
-                executeClockOut(day, time);
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (doesLogExist(day)) {
+            handleSameDayClockOut(day, time);
+        } else {
+            executeClockOut(day, time);
         }
     }
 
     private boolean doesLogExist(String day) {
-
-        String sqlSelect;
-
         if (day == null) {
-            sqlSelect = "SELECT DayOut FROM WorktimeOut WHERE DayOut = date('now', 'localtime');";
-        } else {
-            sqlSelect = "SELECT DayOut FROM WorktimeOut WHERE DayOut = '" + day + "';";
+            day = Utils.getTodayString();
         }
+        String sql = "SELECT DayOut FROM WorktimeOut WHERE DayOut = '" + day + "';";
 
-        try (Connection conn = dbConnectionManager.getDbConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sqlSelect)) {
-
-            return rs.next();
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        return false;
+        return new DatabaseCommandInvoker().executeQueryForExistenceCommand(new QueryForExistenceCommand(sql));
     }
 
 
-    public void quickClockOut() {
-        if (!askForQuickClockOut()) {
-            return;
-        }
-
+    public void shutdownClockOut() {
         if (doesLogExist(null)) {
             handleSameDayClockOut(null, null);
         } else {
@@ -135,101 +60,88 @@ public class OutLogger {
         }
     }
 
-    private boolean askForQuickClockOut() {
+    public void quickClockOut() {
+        String instruction = "\nClock out for today? (Y/N)";
 
-        System.out.println("\nClock out for today? (Y/N)");
+        ConsoleCommandInvoker invoker = new ConsoleCommandInvoker();
+        Object[] result = invoker.execute(new YesNoConsoleCommand(instruction, bufferedReader));
 
-        try {
-
-            while (true) {
-                switch (br.readLine().toLowerCase()) {
-                    case "n":
-                        System.out.println("\nYou have not been clocked out.");
-                        return false;
-
-                    case "y":
-                        executeClockOut(null, null);
-                        return true;
-
-                    default:
-                        System.out.println("Please enter a valid command (Y or N)");
-                        break;
+        if (result != null) {
+            Boolean decision = (Boolean) result[0];
+            if (decision) {
+                if (doesLogExist(Utils.getTodayString())) {
+                    updateClockOut(null, null);
+                } else {
+                    executeClockOut(null, null);
                 }
+            } else {
+                System.out.println("\nYou have not been clocked out.");
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
         }
     }
 
     private void handleSameDayClockOut(String day, String time) {
 
-        System.out.println("Log for the day found. Do you want to override? (Y/N)");
+        String instruction = "Log for the day found. Do you want to override? (Y/N)";
 
-        while (true) {
-            try {
-                switch (br.readLine().toLowerCase()) {
-                    case "n":
-                        return;
+        ConsoleCommandInvoker invoker = new ConsoleCommandInvoker();
+        Object[] result = invoker.execute(new YesNoConsoleCommand(instruction, bufferedReader));
 
-                    case "y":
-                        updateClockOut(day, time);
-                        return;
-
-                    default:
-                        System.out.println("Please enter a valid command (Y or N)");
-                        break;
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+        if (result != null) {
+            Boolean decision = (Boolean) result[0];
+            if (decision) {
+                updateClockOut(day, time);
+            } else {
+                System.out.println("\nYou have not been clocked out.");
             }
         }
     }
 
     private void updateClockOut(String day, String time) {
 
-        String sqlUpdate;
-
-        if (day == null || time == null) {
-            sqlUpdate = "UPDATE WorktimeOut SET TimeOut = " + statTracker.getSecondsToday() + " WHERE DayOut = date('now', 'localtime');";
-        } else {
-            int sqlTime = Utils.convertStringTimeToInt(time);
-            sqlUpdate = "UPDATE WorktimeOut SET TimeOut = " + sqlTime + " WHERE DayOut = '" + day + "';";
-        }
-
-        try (Statement stmt = dbConnectionManager.getDbConnection().createStatement()) {
-            stmt.execute(sqlUpdate);
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
+        String sql;
+        int sqlTime;
 
         if (day == null) {
-            day = "today";
+            day = Utils.getTodayString();
         }
 
-        System.out.println("Clockout time for " + day + " overriden.");
+        if (time == null) {
+            sqlTime = (int) Utils.getSecondsToday();
+        } else {
+            sqlTime = Utils.convertStringTimeToInt(time);
+        }
 
+        sql = "UPDATE WorktimeOut SET TimeOut = " + sqlTime + " WHERE DayOut = '" + day + "';";
+
+        DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
+        invoker.addCommand(new UpdateDatabaseCommand(sql));
+        invoker.executeCommands();
+
+        System.out.println("Clockout time for " + day + " overriden.");
     }
 
     private void executeClockOut(String day, String time) {
 
-        String sqlInsert;
+        String sql;
+        int sqlTime;
 
-        if (day == null || time == null) {
-            sqlInsert = "INSERT INTO WorktimeOut(DayOut, TimeOut) VALUES (date('now', 'localtime'), " + statTracker.getSecondsToday() + ");";
+        if (day == null) {
+            day = Utils.getTodayString();
+        }
+
+        if (time == null) {
+            sqlTime = (int) Utils.getSecondsToday();
         } else {
-            int sqlTime = Utils.convertStringTimeToInt(time);
-            sqlInsert = "INSERT INTO WorktimeOut(DayOut, TimeOut) VALUES ('" + day + "', " + sqlTime + ");";
+            sqlTime = Utils.convertStringTimeToInt(time);
         }
 
+        sql = "INSERT INTO WorktimeOut(DayOut, TimeOut) VALUES ('" + day + "', " + sqlTime + ");";
 
-        try (Statement stmt = dbConnectionManager.getDbConnection().createStatement()) {
-            stmt.execute(sqlInsert);
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
+        DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
+        invoker.addCommand(new UpdateDatabaseCommand(sql));
+        invoker.executeCommands();
 
         System.out.println("Clocked out.");
     }
-
 }

@@ -1,4 +1,4 @@
-package com.ducksonflame.worktimetracker.database;
+package com.ducksonflame.worktimetracker.data;
 
 import java.io.File;
 import java.io.IOException;
@@ -8,14 +8,52 @@ import java.sql.*;
 public class DbConnectionManager {
 
     private static String dbFilePath = "db/WorktimeDB.db";
+    private static DbConnectionManager sInstance;
 
-    public DbConnectionManager() {
+    private DbConnectionManager() {
 
         if (!checkIfDbExists()) {
             createNewDatabase();
         }
-
         checkConnection();
+    }
+
+    public static DbConnectionManager getInstance() {
+        if (sInstance == null) {
+            synchronized (DbConnectionManager.class) {
+                if (sInstance == null) {
+                    sInstance = new DbConnectionManager();
+                }
+            }
+        }
+        return sInstance;
+    }
+
+    private void createNewDatabase() {
+
+        System.out.println("Creating a new database file...");
+
+        try {
+            new File("db").mkdirs();
+            new File(dbFilePath).createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFilePath)) {
+            if (conn != null) {
+                DatabaseMetaData meta = conn.getMetaData();
+                System.out.println("The driver name is " + meta.getDriverName());
+                System.out.println("New database created.");
+            } else {
+                System.out.println("Could not establish connection.");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        createTables();
     }
 
     private boolean checkIfDbExists() {
@@ -44,7 +82,6 @@ public class DbConnectionManager {
         }
     }
 
-
     public Connection getDbConnection() {
 
         Connection conn = null;
@@ -52,40 +89,13 @@ public class DbConnectionManager {
         try {
             conn = DriverManager.getConnection("jdbc:sqlite:" + dbFilePath);
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
         }
 
         return conn;
     }
 
-    private void createNewDatabase() {
-
-        System.out.println("Creating a new database file...");
-
-        try {
-            new File("db").mkdirs();
-            new File(dbFilePath).createNewFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFilePath)) {
-            if (conn != null) {
-                DatabaseMetaData meta = conn.getMetaData();
-                System.out.println("The driver name is " + meta.getDriverName());
-                System.out.println("New database created.");
-            } else {
-                System.out.println("Could not establish connection.");
-            }
-
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-
-        createTables();
-    }
-
-    private static void createTables() {
+    private void createTables() {
 
         String inTableSql = "CREATE TABLE IF NOT EXISTS WorktimeIn (\n" +
                 "    Id      INTEGER PRIMARY KEY\n" +
@@ -115,14 +125,12 @@ public class DbConnectionManager {
                 "    BreakEnd INTEGER    NOT NULL\n" +
                 "    );";
 
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFilePath);
-             Statement stmt = conn.createStatement()) {
-            stmt.execute(inTableSql);
-            stmt.execute(outTableSql);
-            stmt.execute(breakTableSql);
-            System.out.println("Fresh tables were created.");
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
+        DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
+        invoker.addCommand(new InitDatabaseCommand(inTableSql, this));
+        invoker.addCommand(new InitDatabaseCommand(outTableSql, this));
+        invoker.addCommand(new InitDatabaseCommand(breakTableSql, this));
+        invoker.executeCommands();
+
+        System.out.println("Fresh tables were created.");
     }
 }

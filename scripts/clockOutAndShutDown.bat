@@ -1,2 +1,2 @@
-java -jar WorktimeTracker-1.0.jar shutdown
+java -jar WorktimeTracker-1.1.jar shutdown
 shutdown -s -f -t 0
