@@ -4,7 +4,7 @@ WorktimeTracker is a simple command line tool to help you track your worktime. I
 
 HOW TO USE IT?
 
-1. Copy the WorktimeTracker-1.1.jar file from "target\" folder to your preferred location.
+1. Copy the WorktimeTracker-1.1.jar file to your preferred location.
 2. Run the .jar file via command line or via provided scripts described below.
 
 OPTIONAL SCRIPTS
