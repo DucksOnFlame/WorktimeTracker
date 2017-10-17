@@ -34,7 +34,7 @@ public class StatTracker {
     public void printDailyStatistics(boolean isClockIn) {
         System.out.println("\n------------------------------  CLOCK IN  ------------------------------");
         System.out.println("You have arrived at " + getTimeArrivedString() + " today.");
-        if (isClockIn) {
+        if (!isClockIn) {
             System.out.println("\nYou have been working for " + getTimeWorkingString() + " today.");
         }
         System.out.println("------------------------------------------------------------------------");
