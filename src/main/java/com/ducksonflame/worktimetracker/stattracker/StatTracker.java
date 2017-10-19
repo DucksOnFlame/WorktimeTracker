@@ -1,14 +1,15 @@
 package com.ducksonflame.worktimetracker.stattracker;
 
 import com.ducksonflame.worktimetracker.data.DatabaseCommandInvoker;
-import com.ducksonflame.worktimetracker.data.LogDTO;
-import com.ducksonflame.worktimetracker.data.QueryForLogCommand;
-import com.ducksonflame.worktimetracker.data.QueryForLongCommand;
+import com.ducksonflame.worktimetracker.data.QueryCommand;
+import com.ducksonflame.worktimetracker.data.SQLQueryCommand;
+import com.ducksonflame.worktimetracker.dto.LogDTO;
 import com.ducksonflame.worktimetracker.utils.Utils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -88,12 +89,12 @@ public class StatTracker {
         String year = Utils.getCurrentYearString();
 
         String sql = "SELECT IFNULL((SUM((IFNULL(TimeOut, 0) - TimeIn))) - (COUNT(TimeIn)*28800), 0)\n" +
-                " + (SELECT (" + Utils.getSecondsToday() + " - TimeIn) - 28800 FROM WorktimeIn WHERE DayIn LIKE '" + today + "')\n" +
-                " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.DayIn WHERE BreakDay LIKE '" + year + "-" + month + "-__')\n" +
+                " + (SELECT (" + Utils.getSecondsToday() + " - TimeIn) - 28800 FROM WorktimeIn WHERE day LIKE '" + today + "')\n" +
+                " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.day WHERE BreakDay LIKE '" + year + "-" + month + "-__')\n" +
                 "FROM WorktimeIn\n" +
                 "INNER JOIN WorktimeOut\n" +
-                "ON DayIn = WorktimeOut.DayOut\n" +
-                "WHERE DayIn LIKE '" + year + "-" + month + "-__';";
+                "ON WorktimeIn.day = WorktimeOut.day\n" +
+                "WHERE WorktimeIn.day LIKE '" + year + "-" + month + "-__';";
 
         return getWorktimeFromDatabase(sql);
     }
@@ -232,17 +233,15 @@ public class StatTracker {
             System.out.println("|     DAY    | TIME IN  | TIME OUT | BREAK TIME  |  WORKTIME   |   BALANCE    |");
             System.out.println("|-----------------------------------------------------------------------------|");
 
+            String hql = "FROM LogDTO WHERE day LIKE '" + year + "-" + month + "-__';";
+
             boolean logsExist = false;
             DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
+            List logs = (List<LogDTO>) invoker.executeQueryCommand(new QueryCommand(hql));
 
-            for (int j = 1; j < 32; j++) {
+            for (Object obj : logs) {
 
-                sql = "SELECT win.DayIn, win.TimeIn, TimeOut, (SELECT SUM(BreakEnd - BreakBegin) FROM Break WHERE Break.BreakDay = win.DayIn) BreakTime\n" +
-                        "FROM WorktimeIn win\n" +
-                        "INNER JOIN WorktimeOut ON win.DayIn = WorktimeOut.DayOut\n" +
-                        "WHERE DayIn = \"" + year + "-" + month + "-" + String.format("%02d", j) + "\"";
-
-                LogDTO log = invoker.executeQueryForLogCommand(new QueryForLogCommand(sql));
+                LogDTO log = (LogDTO) obj;
 
                 if (log != null) {
                     logsExist = true;
@@ -294,12 +293,24 @@ public class StatTracker {
         return Utils.getHHMMSSFormattedString(secondsPassed);
     }
 
-    private long getTimeInToday() {
-        String sql = "SELECT TimeIn FROM WorktimeIn WHERE DayIn = date('now', 'localtime');";
-        return new DatabaseCommandInvoker().executeQueryForLongCommand(new QueryForLongCommand(sql));
+    private int getTimeInToday() {
+        String hql = "SELECT timeIn FROM WorktimeInDTO WHERE day LIKE '" + Utils.getTodayString() + "'";
+        DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
+        List result = invoker.executeQueryCommand(new QueryCommand(hql));
+        if (!result.isEmpty()) {
+            return (int) result.get(0);
+        } else {
+            return -1;
+        }
     }
 
     private long getWorktimeFromDatabase(String sql) {
-        return new DatabaseCommandInvoker().executeQueryForLongCommand(new QueryForLongCommand(sql));
+        DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
+        List result = invoker.executeQueryCommand(new SQLQueryCommand(sql));
+        if (!result.isEmpty()) {
+            return (int) result.get(0);
+        } else {
+            return -1;
+        }
     }
 }

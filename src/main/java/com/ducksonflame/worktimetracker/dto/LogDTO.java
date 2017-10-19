@@ -1,6 +1,12 @@
-package com.ducksonflame.worktimetracker.data;
+package com.ducksonflame.worktimetracker.dto;
 
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+@Entity
+@Table(name = "Log")
 public class LogDTO {
+
     private String day;
     private long timeIn;
     private long timeOut;

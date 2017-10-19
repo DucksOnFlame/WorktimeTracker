@@ -2,8 +2,10 @@ package com.ducksonflame.worktimetracker.loggers;
 
 
 import com.ducksonflame.worktimetracker.data.DatabaseCommandInvoker;
-import com.ducksonflame.worktimetracker.data.UpdateDatabaseCommand;
-import com.ducksonflame.worktimetracker.data.QueryForExistenceCommand;
+import com.ducksonflame.worktimetracker.data.PersistObjectCommand;
+import com.ducksonflame.worktimetracker.data.QueryCommand;
+import com.ducksonflame.worktimetracker.dto.WorktimeInDTO;
+import com.ducksonflame.worktimetracker.dto.WorktimeOutDTO;
 import com.ducksonflame.worktimetracker.utils.Utils;
 
 import java.io.BufferedReader;
@@ -46,9 +48,9 @@ public class OutLogger {
         if (day == null) {
             day = Utils.getTodayString();
         }
-        String sql = "SELECT DayOut FROM WorktimeOut WHERE DayOut = '" + day + "';";
+        String hql = "FROM WorktimeOutDTO WHERE day = '" + day + "';";
 
-        return new DatabaseCommandInvoker().executeQueryForExistenceCommand(new QueryForExistenceCommand(sql));
+        return !(new DatabaseCommandInvoker().executeQueryCommand(new QueryCommand(hql)).isEmpty());
     }
 
 
@@ -99,7 +101,6 @@ public class OutLogger {
 
     private void updateClockOut(String day, String time) {
 
-        String sql;
         int sqlTime;
 
         if (day == null) {
@@ -107,23 +108,23 @@ public class OutLogger {
         }
 
         if (time == null) {
-            sqlTime = (int) Utils.getSecondsToday();
+            sqlTime = Utils.getSecondsToday();
         } else {
             sqlTime = Utils.convertStringTimeToInt(time);
         }
 
-        sql = "UPDATE WorktimeOut SET TimeOut = " + sqlTime + " WHERE DayOut = '" + day + "';";
+        String hql = "FROM WorktimeOutDTO WHERE day LIKE '" + day + "';";
 
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
-        invoker.addCommand(new UpdateDatabaseCommand(sql));
-        invoker.executeCommands();
+        WorktimeOutDTO worktimeOutDTO = (WorktimeOutDTO) invoker.executeQueryCommand(new QueryCommand(hql)).get(0);
+        worktimeOutDTO.setTimeOut(sqlTime);
+        invoker.executeUpdateCommand(new PersistObjectCommand(worktimeOutDTO));
 
-        System.out.println("Clockout time for " + day + " overriden.");
+        System.out.println("Clockout time for " + day + " overridden.");
     }
 
     private void executeClockOut(String day, String time) {
 
-        String sql;
         int sqlTime;
 
         if (day == null) {
@@ -131,16 +132,16 @@ public class OutLogger {
         }
 
         if (time == null) {
-            sqlTime = (int) Utils.getSecondsToday();
+            sqlTime = Utils.getSecondsToday();
         } else {
             sqlTime = Utils.convertStringTimeToInt(time);
         }
 
-        sql = "INSERT INTO WorktimeOut(DayOut, TimeOut) VALUES ('" + day + "', " + sqlTime + ");";
-
+        WorktimeInDTO worktimeInDTO = new WorktimeInDTO();
+        worktimeInDTO.setDay(day);
+        worktimeInDTO.setTimeIn(sqlTime);
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
-        invoker.addCommand(new UpdateDatabaseCommand(sql));
-        invoker.executeCommands();
+        invoker.executeUpdateCommand(new PersistObjectCommand(worktimeInDTO));
 
         System.out.println("Clocked out.");
     }

@@ -2,7 +2,9 @@ package com.ducksonflame.worktimetracker.loggers;
 
 
 import com.ducksonflame.worktimetracker.data.DatabaseCommandInvoker;
+import com.ducksonflame.worktimetracker.data.PersistObjectCommand;
 import com.ducksonflame.worktimetracker.data.UpdateDatabaseCommand;
+import com.ducksonflame.worktimetracker.dto.BreakDTO;
 import com.ducksonflame.worktimetracker.utils.Utils;
 
 import java.io.BufferedReader;
@@ -142,21 +144,23 @@ public class BreakLogger {
     }
 
     private void registerBreak(String day, int breakBegin, int breakEnd) {
-        String sql = "INSERT INTO Break(BreakDay, BreakBegin, BreakEnd) VALUES ('" + day + "', " + breakBegin + ", " + breakEnd + ");";
+
+        BreakDTO breakDTO = new BreakDTO();
+        breakDTO.setBreakDay(day);
+        breakDTO.setBreakBegin(breakBegin);
+        breakDTO.setBreakEnd(breakEnd);
 
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
-        invoker.addCommand(new UpdateDatabaseCommand(sql));
-        invoker.executeCommands();
+        invoker.executeUpdateCommand(new PersistObjectCommand(breakDTO));
 
         System.out.println("Break for: " + day + " registered between " + Utils.getTimeFormattedString(breakBegin) + " and " + Utils.getTimeFormattedString(breakEnd));
     }
 
     private void executeClearBreaks(String day) {
-        String sql = "DELETE FROM Break WHERE (Break.BreakDay = '" + day + "')";
+        String hql = "DELETE Break WHERE breakDay = '" + day + "')";
 
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
-        invoker.addCommand(new UpdateDatabaseCommand(sql));
-        invoker.executeCommands();
+        invoker.executeUpdateCommand(new UpdateDatabaseCommand(hql));
 
         System.out.println("All breaks for: " + day + " deleted.");
     }

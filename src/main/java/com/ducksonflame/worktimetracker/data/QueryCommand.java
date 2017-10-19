@@ -3,19 +3,22 @@ package com.ducksonflame.worktimetracker.data;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 
-public class UpdateDatabaseCommand extends AbstractDatabaseCommand {
+import java.util.List;
 
-    public UpdateDatabaseCommand(String hql) {
+public class QueryCommand extends AbstractDatabaseCommand {
+
+    public QueryCommand(String hql) {
         super(hql);
     }
 
     @Override
-    public void executeUpdate() {
+    public List executeQuery() {
         Session session = DbConnectionManager.getSession();
         session.beginTransaction();
         Query query = session.createQuery(hql);
-        query.executeUpdate();
+        List results = query.list();
         session.getTransaction().commit();
         session.close();
+        return results;
     }
 }

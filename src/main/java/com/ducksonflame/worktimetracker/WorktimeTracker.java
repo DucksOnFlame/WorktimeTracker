@@ -1,10 +1,10 @@
 package com.ducksonflame.worktimetracker;
 
+import com.ducksonflame.worktimetracker.data.DbConnectionManager;
 import com.ducksonflame.worktimetracker.loggers.BreakLogger;
 import com.ducksonflame.worktimetracker.loggers.InLogger;
 import com.ducksonflame.worktimetracker.loggers.OutLogger;
 import com.ducksonflame.worktimetracker.stattracker.StatTracker;
-import com.ducksonflame.worktimetracker.utils.Utils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -29,6 +29,8 @@ public class WorktimeTracker {
     }
 
     private WorktimeTracker() {
+        DbConnectionManager dbConnectionManager = new DbConnectionManager();
+        dbConnectionManager.init();
         bufferedReader = new BufferedReader(new InputStreamReader(System.in));
         statTracker = new StatTracker(bufferedReader);
         inLogger = new InLogger(statTracker, bufferedReader);

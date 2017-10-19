@@ -1,12 +1,14 @@
 package com.ducksonflame.worktimetracker.loggers;
 
 import com.ducksonflame.worktimetracker.data.DatabaseCommandInvoker;
-import com.ducksonflame.worktimetracker.data.UpdateDatabaseCommand;
-import com.ducksonflame.worktimetracker.data.QueryForExistenceCommand;
+import com.ducksonflame.worktimetracker.data.PersistObjectCommand;
+import com.ducksonflame.worktimetracker.data.QueryCommand;
+import com.ducksonflame.worktimetracker.dto.WorktimeInDTO;
 import com.ducksonflame.worktimetracker.stattracker.StatTracker;
 import com.ducksonflame.worktimetracker.utils.Utils;
 
 import java.io.BufferedReader;
+import java.util.List;
 
 
 public class InLogger {
@@ -27,16 +29,17 @@ public class InLogger {
     }
 
     private boolean checkIfAlreadyLoggedToday() {
-        String sql = "SELECT DayIn FROM WorktimeIn WHERE DayIn = date('now', 'localtime');";
-        return new DatabaseCommandInvoker().executeQueryForExistenceCommand(new QueryForExistenceCommand(sql));
+        String hql = "FROM WorktimeInDTO WHERE day = " + Utils.getTodayString();
+        return new DatabaseCommandInvoker().executeQueryCommand(new QueryCommand(hql)).isEmpty();
     }
 
     private void clockIn() {
-        String sql = "INSERT INTO WorktimeIn(DayIn, TimeIn) VALUES (date('now', 'localtime'), " + Utils.getSecondsToday() + ");";
+        WorktimeInDTO worktimeInDTO = new WorktimeInDTO();
+        worktimeInDTO.setDay(Utils.getTodayString());
+        worktimeInDTO.setTimeIn(Utils.getSecondsToday());
 
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
-        invoker.addCommand(new UpdateDatabaseCommand(sql));
-        invoker.executeCommands();
+        invoker.executeUpdateCommand(new PersistObjectCommand(worktimeInDTO));
 
         System.out.println("Log for: " + Utils.getTodayString() + " created.");
     }
@@ -59,24 +62,25 @@ public class InLogger {
     }
 
     private void updateClockInLog(String day, String time) {
-        String sql = "SELECT TimeIn FROM WorktimeIn WHERE DayIn LIKE '" + day + "';";
+        String hql = "FROM WorktimeInDTO WHERE day LIKE '" + day + "';";
 
-        boolean found = new DatabaseCommandInvoker().executeQueryForExistenceCommand(new QueryForExistenceCommand(sql));
+        DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
+        List result = invoker.executeQueryCommand(new QueryCommand(hql));
 
-        if (found) {
-            executeUpdateClockInLog(day, time);
+        if (!result.isEmpty()) {
+            executeUpdateClockInLog(time, (WorktimeInDTO) result.get(0));
         } else {
             handleNoLogFound(day, time);
         }
     }
 
-    private void executeUpdateClockInLog(String day, String time) {
+    private void executeUpdateClockInLog(String time, WorktimeInDTO worktimeInDTO) {
         int sqlTime = Utils.convertStringTimeToInt(time);
 
-        String sql = "UPDATE WorktimeIn SET TimeIn = " + sqlTime + " WHERE DayIn LIKE '" + day + "';";
+        worktimeInDTO.setTimeIn(sqlTime);
+
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
-        invoker.addCommand(new UpdateDatabaseCommand(sql));
-        invoker.executeCommands();
+        invoker.executeUpdateCommand(new PersistObjectCommand(worktimeInDTO));
     }
 
     private void handleNoLogFound(String day, String time) {
@@ -100,11 +104,12 @@ public class InLogger {
     private void executeCreateNewClockInLog(String day, String time) {
         int sqlTime = Utils.convertStringTimeToInt(time);
 
-        String sql = "INSERT INTO WorktimeIn(DayIn, TimeIn) VALUES ('" + day + "', " + sqlTime + ");";
+        WorktimeInDTO worktimeInDTO = new WorktimeInDTO();
+        worktimeInDTO.setDay(day);
+        worktimeInDTO.setTimeIn(sqlTime);
 
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
-        invoker.addCommand(new UpdateDatabaseCommand(sql));
-        invoker.executeCommands();
+        invoker.executeUpdateCommand(new PersistObjectCommand(worktimeInDTO));
 
         System.out.println("Log for: " + day + " created.");
     }

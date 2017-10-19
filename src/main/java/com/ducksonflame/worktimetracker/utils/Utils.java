@@ -97,11 +97,11 @@ public class Utils {
         return new SimpleDateFormat("yyyy-MM-dd").format(new Date());
     }
 
-    public static long getSecondsToday() {
+    public static int getSecondsToday() {
         ZonedDateTime now = ZonedDateTime.now();
         ZonedDateTime midnight = now.truncatedTo(ChronoUnit.DAYS);
         Duration duration = Duration.between(midnight, now);
-        return duration.getSeconds();
+        return (int) duration.getSeconds();
     }
 
     public static Pattern getDayPattern() {

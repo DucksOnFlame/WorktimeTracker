@@ -1,20 +1,20 @@
 package com.ducksonflame.worktimetracker.data;
 
 import org.hibernate.Session;
-import org.hibernate.query.Query;
 
-public class UpdateDatabaseCommand extends AbstractDatabaseCommand {
+public class PersistObjectCommand extends AbstractDatabaseCommand {
 
-    public UpdateDatabaseCommand(String hql) {
-        super(hql);
+    private Object objectToPersist;
+
+    public PersistObjectCommand(Object objectToPersist) {
+        this.objectToPersist = objectToPersist;
     }
 
     @Override
     public void executeUpdate() {
         Session session = DbConnectionManager.getSession();
         session.beginTransaction();
-        Query query = session.createQuery(hql);
-        query.executeUpdate();
+        session.save(objectToPersist);
         session.getTransaction().commit();
         session.close();
     }

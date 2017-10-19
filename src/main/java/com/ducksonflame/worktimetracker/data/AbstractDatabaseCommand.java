@@ -1,26 +1,24 @@
 package com.ducksonflame.worktimetracker.data;
 
+import java.util.List;
+
 public abstract class AbstractDatabaseCommand {
 
-    protected String sql;
+    protected String hql;
 
-    protected AbstractDatabaseCommand(String sql) {
-        this.sql = sql;
-    }
-
-    public void execute() {
+    protected AbstractDatabaseCommand() {
 
     }
 
-    public long queryForLong() {
-        return 0;
+    protected AbstractDatabaseCommand(String hql) {
+        this.hql = hql;
     }
 
-    public LogDTO queryForLog() {
+    public List executeQuery() {
         return null;
     }
 
-    public boolean queryForExistence() {
-        return false;
+    public void executeUpdate() {
+
     }
 }
