@@ -3,6 +3,7 @@ package com.ducksonflame.worktimetracker.data;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class SQLQueryCommand extends AbstractDatabaseCommand {
@@ -15,12 +16,21 @@ public class SQLQueryCommand extends AbstractDatabaseCommand {
 
     @Override
     public List executeQuery() {
-        Session session = DbConnectionManager.getSession();
-        session.beginTransaction();
-        Query query = session.createNativeQuery(sql);
-        List results = query.list();
-        session.getTransaction().commit();
-        session.close();
-        return results;
+
+        try {
+            Session session = DbConnectionManager.getSession();
+            session.beginTransaction();
+            Query query = session.createNativeQuery(sql);
+            List results = new ArrayList();
+            if (query != null) {
+                results = query.list();
+            }
+            session.getTransaction().commit();
+            session.close();
+            return results;
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            return new ArrayList();
+        }
     }
 }

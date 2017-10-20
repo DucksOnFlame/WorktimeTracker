@@ -54,9 +54,9 @@ public class DbConnectionManager {
 
     private void initLogView() {
         String sql = "CREATE VIEW Log AS\n" +
-                "SELECT win.DayIn, win.TimeIn, TimeOut, (SELECT SUM(BreakEnd - BreakBegin) FROM Break WHERE Break.BreakDay = win.DayIn) BreakTime\n" +
+                "SELECT win.day, win.TimeIn, TimeOut, (SELECT SUM(BreakEnd - BreakBegin) FROM Break WHERE Break.BreakDay = win.day) BreakTime\n" +
                 "FROM WorktimeIn win\n" +
-                "INNER JOIN WorktimeOut ON win.DayIn = WorktimeOut.DayOut;";
+                "INNER JOIN WorktimeOut ON win.day = WorktimeOut.day;";
 
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFilePath);
              Statement stmt = conn.createStatement()) {

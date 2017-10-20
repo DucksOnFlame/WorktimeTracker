@@ -113,12 +113,12 @@ public class StatTracker {
         String today = Utils.getTodayString();
 
         String sql = "SELECT IFNULL((SUM((IFNULL(WorktimeOut.TimeOut, 0) - WorktimeIn.TimeIn))) - (COUNT(WorktimeIn.TimeIn)*28800), 0)\n" +
-                " + (SELECT (" + Utils.getSecondsToday() + " - WorktimeIn.TimeIn) - 28800 FROM WorktimeIn WHERE WorktimeIn.DayIn LIKE '" + today + "')\n" +
-                " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.DayIn WHERE BreakDay LIKE '" + year + "-" + months[0] + "-__' OR BreakDay LIKE '" + year + "-" + months[1] + "-__' OR BreakDay LIKE '" + year + "-" + months[2] + "-__')\n" +
+                " + (SELECT (" + Utils.getSecondsToday() + " - WorktimeIn.TimeIn) - 28800 FROM WorktimeIn WHERE WorktimeIn.day LIKE '" + today + "')\n" +
+                " - (SELECT IFNULL(SUM(IFNULL(Break.BreakEnd - Break.BreakBegin, 0)), 0) FROM Break INNER JOIN WorktimeIn ON Break.BreakDay = WorktimeIn.day WHERE BreakDay LIKE '" + year + "-" + months[0] + "-__' OR BreakDay LIKE '" + year + "-" + months[1] + "-__' OR BreakDay LIKE '" + year + "-" + months[2] + "-__')\n" +
                 "FROM WorktimeIn\n" +
                 "INNER JOIN WorktimeOut\n" +
-                "ON WorktimeIn.DayIn = WorktimeOut.DayOut\n" +
-                "WHERE WorktimeIn.DayIn LIKE '" + year + "-" + months[0] + "-__' OR WorktimeIn.DayIn LIKE '" + year + "-" + months[1] + "-__' OR WorktimeIn.DayIn LIKE '" + year + "-" + months[2] + "-__';";
+                "ON WorktimeIn.day = WorktimeOut.day\n" +
+                "WHERE WorktimeIn.day LIKE '" + year + "-" + months[0] + "-__' OR WorktimeIn.day LIKE '" + year + "-" + months[1] + "-__' OR WorktimeIn.day LIKE '" + year + "-" + months[2] + "-__';";
 
         return getWorktimeFromDatabase(sql);
     }
@@ -199,7 +199,6 @@ public class StatTracker {
             months.add(String.format("%02d", monthNumber));
         }
 
-        String sql;
         String day;
 
         String timeInString;
@@ -233,7 +232,7 @@ public class StatTracker {
             System.out.println("|     DAY    | TIME IN  | TIME OUT | BREAK TIME  |  WORKTIME   |   BALANCE    |");
             System.out.println("|-----------------------------------------------------------------------------|");
 
-            String hql = "FROM LogDTO WHERE day LIKE '" + year + "-" + month + "-__';";
+            String hql = "FROM LogDTO WHERE day LIKE '" + year + "-" + month + "-__'";
 
             boolean logsExist = false;
             DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();

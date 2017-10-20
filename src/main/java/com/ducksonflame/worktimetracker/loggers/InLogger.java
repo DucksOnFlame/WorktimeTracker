@@ -62,7 +62,7 @@ public class InLogger {
     }
 
     private void updateClockInLog(String day, String time) {
-        String hql = "FROM WorktimeInDTO WHERE day LIKE '" + day + "';";
+        String hql = "FROM WorktimeInDTO WHERE day LIKE '" + day + "'";
 
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
         List result = invoker.executeQueryCommand(new QueryCommand(hql));

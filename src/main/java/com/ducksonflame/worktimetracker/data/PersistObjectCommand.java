@@ -12,10 +12,14 @@ public class PersistObjectCommand extends AbstractDatabaseCommand {
 
     @Override
     public void executeUpdate() {
-        Session session = DbConnectionManager.getSession();
-        session.beginTransaction();
-        session.save(objectToPersist);
-        session.getTransaction().commit();
-        session.close();
+        try {
+            Session session = DbConnectionManager.getSession();
+            session.beginTransaction();
+            session.save(objectToPersist);
+            session.getTransaction().commit();
+            session.close();
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+        }
     }
 }

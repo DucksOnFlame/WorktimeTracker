@@ -1,16 +1,18 @@
 package com.ducksonflame.worktimetracker.dto;
 
 import javax.persistence.Entity;
+import javax.persistence.Id;
 import javax.persistence.Table;
 
 @Entity
 @Table(name = "Log")
 public class LogDTO {
 
+    @Id
     private String day;
     private long timeIn;
     private long timeOut;
-    private long breakTime;
+    private Long breakTime;
 
     public String getDay() {
         return day;
@@ -37,6 +39,9 @@ public class LogDTO {
     }
 
     public long getBreakTime() {
+        if (breakTime == null) {
+            return 0;
+        }
         return breakTime;
     }
 

@@ -157,7 +157,7 @@ public class BreakLogger {
     }
 
     private void executeClearBreaks(String day) {
-        String hql = "DELETE Break WHERE breakDay = '" + day + "')";
+        String hql = "DELETE BreakDTO WHERE breakDay = '" + day + "'";
 
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
         invoker.executeUpdateCommand(new UpdateDatabaseCommand(hql));

@@ -4,7 +4,6 @@ package com.ducksonflame.worktimetracker.loggers;
 import com.ducksonflame.worktimetracker.data.DatabaseCommandInvoker;
 import com.ducksonflame.worktimetracker.data.PersistObjectCommand;
 import com.ducksonflame.worktimetracker.data.QueryCommand;
-import com.ducksonflame.worktimetracker.dto.WorktimeInDTO;
 import com.ducksonflame.worktimetracker.dto.WorktimeOutDTO;
 import com.ducksonflame.worktimetracker.utils.Utils;
 
@@ -21,7 +20,6 @@ public class OutLogger {
     public void clockOut() {
         askForClockOut();
     }
-
 
     private void askForClockOut() {
 
@@ -48,7 +46,7 @@ public class OutLogger {
         if (day == null) {
             day = Utils.getTodayString();
         }
-        String hql = "FROM WorktimeOutDTO WHERE day = '" + day + "';";
+        String hql = "FROM WorktimeOutDTO WHERE day = '" + day + "'";
 
         return !(new DatabaseCommandInvoker().executeQueryCommand(new QueryCommand(hql)).isEmpty());
     }
@@ -113,7 +111,7 @@ public class OutLogger {
             sqlTime = Utils.convertStringTimeToInt(time);
         }
 
-        String hql = "FROM WorktimeOutDTO WHERE day LIKE '" + day + "';";
+        String hql = "FROM WorktimeOutDTO WHERE day LIKE '" + day + "'";
 
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
         WorktimeOutDTO worktimeOutDTO = (WorktimeOutDTO) invoker.executeQueryCommand(new QueryCommand(hql)).get(0);
@@ -137,11 +135,11 @@ public class OutLogger {
             sqlTime = Utils.convertStringTimeToInt(time);
         }
 
-        WorktimeInDTO worktimeInDTO = new WorktimeInDTO();
-        worktimeInDTO.setDay(day);
-        worktimeInDTO.setTimeIn(sqlTime);
+        WorktimeOutDTO worktimeOutDTO = new WorktimeOutDTO();
+        worktimeOutDTO.setDay(day);
+        worktimeOutDTO.setTimeOut(sqlTime);
         DatabaseCommandInvoker invoker = new DatabaseCommandInvoker();
-        invoker.executeUpdateCommand(new PersistObjectCommand(worktimeInDTO));
+        invoker.executeUpdateCommand(new PersistObjectCommand(worktimeOutDTO));
 
         System.out.println("Clocked out.");
     }
